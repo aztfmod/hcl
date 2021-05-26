@@ -240,6 +240,12 @@ func TestGetType(t *testing.T) {
 			``,
 		},
 		{
+			`object({name=optional(string), id=number})`,
+			false,
+			cty.ObjectWithOptionalAttrs(map[string]cty.Type{"name": cty.String, "id": cty.Number}, []string{"name"}),
+			``,
+		},
+		{
 			`list(map(tuple([])))`,
 			false,
 			cty.List(cty.Map(cty.EmptyTuple)),

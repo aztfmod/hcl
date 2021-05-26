@@ -148,6 +148,7 @@ func getType(expr hcl.Expression, constraint bool) (cty.Type, hcl.Diagnostics) {
 		}
 
 		atys := make(map[string]cty.Type)
+		optAtys := []string{}
 		for _, attrDef := range attrDefs {
 			attrName := hcl.ExprAsKeyword(attrDef.Key)
 			if attrName == "" {
@@ -160,11 +161,23 @@ func getType(expr hcl.Expression, constraint bool) (cty.Type, hcl.Diagnostics) {
 				})
 				continue
 			}
-			aty, attrDiags := getType(attrDef.Value, constraint)
+			var aty cty.Type
+			var attrDiags hcl.Diagnostics
+			call, attrDiags := hcl.ExprCall(attrDef.Value)
+			if !attrDiags.HasErrors() && call.Name == "optional" && len(call.Arguments) == 1 {
+				optAtys = append(optAtys, attrName)
+				aty, attrDiags = getType(call.Arguments[0], constraint)
+			} else {
+				aty, attrDiags = getType(attrDef.Value, constraint)
+			}
+
 			diags = append(diags, attrDiags...)
 			atys[attrName] = aty
 		}
-		return cty.Object(atys), diags
+		if len(optAtys) == 0 {
+			return cty.Object(atys), diags
+		}
+		return cty.ObjectWithOptionalAttrs(atys, optAtys), diags
 	case "tuple":
 		elemDefs, diags := hcl.ExprList(call.Arguments[0])
 		if diags.HasErrors() {
